@@ -29,9 +29,9 @@ class Dataset:
         return np.array(date), np.float32(latitude), np.float32(longitude), np.float32(magnitude)
 
     @staticmethod
-    def normalize(array):
+    def normalize_date(array):
         '''
-        Normalize array (datetime array compatible)
+        Normalize datetime array
         :param array: array to normalize
         :return: normalized array (np.array)
         '''
@@ -39,14 +39,24 @@ class Dataset:
         max_data = max(array)
         delta = max_data - min_data
 
-        if isinstance(array[0], datetime):
-            tmp = []
+        return np.float32([(d - min_data).total_seconds() / delta.total_seconds() for d in array])
 
-            for d in array:
-                tmp.append((d - min_data).total_seconds() / delta.total_seconds())
+    @staticmethod
+    def normalize_cord(latitude, longitude):
+        '''
+        Normalize GPS cord array, assuming the earth is shpherical
+        :param latitude: latitude array to normalize
+        :param longitude: longitude array to normalize
+        :return: normalized arrays (np.array)
+        '''
+        rad_lat = np.deg2rad(latitude)
+        rad_lon = np.deg2rad(longitude)
 
-            return np.float32(tmp)
-        return (array - min_data) / delta
+        x = np.cos(rad_lat) * np.cos(rad_lon)
+        y = np.cos(rad_lat) * np.sin(rad_lon)
+        z = np.sin(rad_lat)
+
+        return x, y, z
 
     @staticmethod
     def vectorize(date, latitude, longitude):
@@ -57,9 +67,8 @@ class Dataset:
         :param longitude: longitude array
         :return: np.array
         '''
-        return np.concatenate(
-            (Dataset.normalize(date), Dataset.normalize(latitude), Dataset.normalize(longitude)))\
-            .reshape((3, len(date)))\
+        return np.concatenate(Dataset.normalize_cord(latitude, longitude) + (Dataset.normalize_date(date),))\
+            .reshape((4, len(date)))\
             .swapaxes(0, 1)
 
 
